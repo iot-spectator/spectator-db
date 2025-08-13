@@ -1,11 +1,13 @@
+# Copyright © 2025 by IoT Spectator. All rights reserved.
+
 import pathlib
 
 from typing import Optional, override
 
-from spectatordb import storage
+from spectatordb.storage import SaveMode, Storage
 
 
-class LocalStorage(storage.Storage):
+class LocalStorage(Storage):
 
     def __init__(self, storage_dir: pathlib.Path):
         self.storage_dir = storage_dir
@@ -13,9 +15,7 @@ class LocalStorage(storage.Storage):
 
     @override
     def save(
-        self,
-        file: pathlib.Path,
-        mode: Optional[storage.SaveMode] = storage.SaveMode.COPY,
+        self, file: pathlib.Path, mode: Optional[SaveMode] = SaveMode.COPY
     ) -> None:
         pass
 
