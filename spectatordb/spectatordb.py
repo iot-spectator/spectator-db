@@ -1,2 +1,7 @@
+from spectatordb import storage
+
+
 class SpectatorDB:
-    pass
+
+    def __init__(self, storage: storage.Storage):
+        pass
