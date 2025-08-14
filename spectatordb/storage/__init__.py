@@ -59,6 +59,6 @@ class Storage:
         pass
 
     @abc.abstractmethod
-    def list_all(self) -> list[str]:
+    def list_all(self) -> list[pathlib.Path]:
         """Return a list of names or identifiers for all stored files."""
         pass
