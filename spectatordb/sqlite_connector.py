@@ -16,6 +16,9 @@ class SQLiteConnector:
         self._connection = sqlite3.connect(self._db_path)
         self._cursor = self._connection.cursor()
 
+    def __del__(self):
+        self._connection.close()
+
     def execute_query(self, query: str, params: tuple = ()):
         """Execute a SQL query with optional parameters.
 
