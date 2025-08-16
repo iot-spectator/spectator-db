@@ -5,10 +5,10 @@ import shutil
 
 from typing import Optional, override
 
-from spectatordb.storage import SaveMode, Storage
+from spectatordb.storage import storage
 
 
-class LocalStorage(Storage):
+class LocalStorage(storage.Storage):
     """Local file system storage backend.
 
     Provides methods to save, retrieve, delete, and list files in a local directory.
@@ -34,7 +34,9 @@ class LocalStorage(Storage):
 
     @override
     def save(
-        self, file: pathlib.Path, mode: Optional[SaveMode] = SaveMode.COPY
+        self,
+        file: pathlib.Path,
+        mode: Optional[storage.SaveMode] = storage.SaveMode.COPY,
     ) -> None:
         """Save a file to the local storage directory.
 
@@ -55,7 +57,7 @@ class LocalStorage(Storage):
         if not file.exists():
             raise FileNotFoundError(f"Source file {file} does not exist.")
         target_path = self._storage_dir / file.name
-        if mode == SaveMode.MOVE:
+        if mode == storage.SaveMode.MOVE:
             shutil.move(file, target_path)
         else:
             if target_path.exists():
@@ -86,6 +88,7 @@ class LocalStorage(Storage):
     @override
     def delete(self, name: str) -> None:
         """Delete a file from the local storage directory.
+
         Parameters
         ----------
         name : str

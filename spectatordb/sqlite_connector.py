@@ -17,6 +17,7 @@ class SQLiteConnector:
         self._cursor = self._connection.cursor()
 
     def __del__(self):
+        """Ensure the database connection is closed when the object is deleted."""
         self._connection.close()
 
     def execute_query(self, query: str, params: tuple = ()):

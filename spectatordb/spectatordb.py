@@ -1,13 +1,21 @@
+import enum
 import pathlib
 
 from datetime import datetime
 
-from spectatordb import MediaType
 from spectatordb import sqlite_connector
-from spectatordb import storage
+from spectatordb.storage import storage
+
+
+class MediaType(enum.StrEnum):
+    """Defines the types of media that can be stored in the database."""
+
+    VIDEO = enum.auto()
+    IMAGE = enum.auto()
 
 
 class SpectatorDB:
+    """Main class for managing media data storage and retrieval."""
 
     def __init__(
         self, storage: storage.Storage, sql_connector: sqlite_connector.SQLiteConnector

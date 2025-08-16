@@ -1,7 +1,7 @@
 import pytest
 
+from spectatordb.storage.storage import SaveMode
 from spectatordb.storage.local_storage import LocalStorage
-from spectatordb.storage import SaveMode
 
 
 def test_save_and_list_all(tmp_path):
