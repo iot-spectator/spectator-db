@@ -21,9 +21,7 @@ def test_execute_query_create_insert_select():
     try:
         connector = sqlite_connector.SQLiteConnector(db_path)
         # Create table
-        connector.execute_query(
-            "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)"
-        )
+        connector.execute_query("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
         # Insert row
         connector.execute_query("INSERT INTO test (name) VALUES (?)", ("Alice",))
         # Select row using direct sqlite3 for verification
