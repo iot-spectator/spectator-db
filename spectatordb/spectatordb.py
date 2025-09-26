@@ -3,7 +3,7 @@ import pathlib
 
 from datetime import datetime
 
-from spectatordb import sqlite_connector
+from spectatordb.connector import sqlite_connector
 from spectatordb.storage import storage
 
 
