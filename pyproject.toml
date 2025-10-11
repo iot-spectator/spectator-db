@@ -1,11 +1,11 @@
 [project]
-name = "package_name"
+name = "spectator-db"
 version = "0.0.2"
 authors = [
-    {name="Shun Huang", email="shun@formosa1544.com"}
+    {name="IoT Spectator", email="shun@formosa1544.com"}
 ]
-description = "Package description"
-readme = {file = "README.rst", content-type = "text/x-rst"}
+description = "A database for storing and managing images and videos."
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.13"
 license = {text = "MIT License"}
 dependencies = []
@@ -14,7 +14,4 @@ dependencies = []
 exclude = ["tests"]
 
 [project.urls]
-repository = "https://github.com/burpeesDaily/python-template"
-
-[project.scripts]
-project-entry = "package.bin.entry:main"
+repository = "https://github.com/iot-spectator/spectator-db"
