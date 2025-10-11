@@ -9,6 +9,8 @@ sphinx-copybutton
 sphinx-rtd-theme
 mkdocs
 mkdocs-include-markdown-plugin
+mkdocstrings
+mkdocstrings-python
 
 # Uncomment if Installing the packages in development mode
 # -e .
