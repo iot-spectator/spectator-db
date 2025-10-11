@@ -7,7 +7,7 @@ pytest-cov
 sphinx
 sphinx-copybutton
 sphinx-rtd-theme
-
+mkdocs
 
 # Uncomment if Installing the packages in development mode
 # -e .
