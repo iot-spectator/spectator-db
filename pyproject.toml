@@ -1,6 +1,6 @@
 [project]
 name = "spectator-db"
-version = "0.0.2"
+version = "0.0.1"
 authors = [
     {name="IoT Spectator", email="shun@formosa1544.com"}
 ]
