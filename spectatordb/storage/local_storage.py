@@ -3,7 +3,7 @@
 import pathlib
 import shutil
 
-from typing import Optional, override
+from typing import override
 
 from spectatordb.storage import storage
 
@@ -28,7 +28,7 @@ class LocalStorage(storage.Storage):
     >>> files = storage.list_all()  # List all stored files
     """
 
-    def __init__(self, storage_dir: pathlib.Path):
+    def __init__(self, storage_dir: pathlib.Path) -> None:
         self._storage_dir = storage_dir
         self._storage_dir.mkdir(parents=True, exist_ok=True)
 
@@ -36,7 +36,8 @@ class LocalStorage(storage.Storage):
     def save(
         self,
         file: pathlib.Path,
-        mode: Optional[storage.SaveMode] = storage.SaveMode.COPY,
+        mode: storage.SaveMode = storage.SaveMode.COPY,
+        name: str | None = None,
     ) -> None:
         """Save a file to the local storage directory.
 
@@ -46,6 +47,9 @@ class LocalStorage(storage.Storage):
             The full path of the file to be saved.
         mode : SaveMode
             The mode to save the file, either COPY or MOVE.
+        name : str | None
+            The name to store the file under. If ``None``, the original
+            filename is used.
 
         Raises
         ------
@@ -56,7 +60,8 @@ class LocalStorage(storage.Storage):
         """
         if not file.exists():
             raise FileNotFoundError(f"Source file {file} does not exist.")
-        target_path = self._storage_dir / file.name
+        target_name = name if name is not None else file.name
+        target_path = self._storage_dir / target_name
         if mode == storage.SaveMode.MOVE:
             shutil.move(file, target_path)
         else:

@@ -4,8 +4,6 @@ import abc
 import enum
 import pathlib
 
-from typing import Optional
-
 
 class SaveMode(enum.StrEnum):
     """Defines the modes for saving files in storage."""
@@ -14,7 +12,7 @@ class SaveMode(enum.StrEnum):
     MOVE = enum.auto()
 
 
-class Storage:
+class Storage(abc.ABC):
     """Abstract base class for storage backends.
 
     Defines the interface for saving, retrieving, deleting, and listing data objects.
@@ -22,7 +20,10 @@ class Storage:
 
     @abc.abstractmethod
     def save(
-        self, file: pathlib.Path, mode: Optional[SaveMode] = SaveMode.COPY
+        self,
+        file: pathlib.Path,
+        mode: SaveMode = SaveMode.COPY,
+        name: str | None = None,
     ) -> None:
         """Save a file into the storage system.
 
@@ -30,24 +31,29 @@ class Storage:
         ----------
         file : pathlib.Path
             The full path of the file to be saved in storage.
-        mode: SaveMode
+        mode : SaveMode
             Copy or move the file to the storage system.
+        name : str | None
+            The name to store the file under. If ``None``, the original
+            filename is used.
         """
-        pass
 
     @abc.abstractmethod
-    def retrieve(self, name: str, dest: pathlib.Path):
+    def retrieve(self, name: str, dest: pathlib.Path) -> None:
         """Retrieve the file to the given destination.
 
         Parameters
         ----------
         name : str
             The name or identifier of the file to retrieve.
-
-        dest: pathlib.Path
+        dest : pathlib.Path
             The destination that the file is retrieved to.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the file does not exist in storage.
         """
-        pass
 
     @abc.abstractmethod
     def delete(self, name: str) -> None:
@@ -58,9 +64,7 @@ class Storage:
         name : str
             The name or identifier of the file to delete.
         """
-        pass
 
     @abc.abstractmethod
     def list_all(self) -> list[pathlib.Path]:
-        """Return a list of names or identifiers for all stored files."""
-        pass
+        """Return a list of paths for all stored files."""
