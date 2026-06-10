@@ -1,95 +1,216 @@
-import enum
+"""SpectatorDB — media storage and retrieval facade."""
+
 import pathlib
 
 from datetime import datetime
 
-from spectatordb.connector import sqlite_connector
-from spectatordb.storage import storage
-
-
-class MediaType(enum.StrEnum):
-    """Defines the types of media that can be stored in the database."""
-
-    VIDEO = enum.auto()
-    IMAGE = enum.auto()
+from spectatordb.metadata.metadata_store import MetadataStore
+from spectatordb.models import MediaRecord, MediaType
+from spectatordb.storage.storage import SaveMode, Storage
 
 
 class SpectatorDB:
-    """Main class for managing media data storage and retrieval."""
+    """Main class for managing media data storage and retrieval.
 
-    def __init__(
-        self, storage: storage.Storage, sql_connector: sqlite_connector.SQLiteConnector
-    ):
-        """Initialize the SpectatorDB with a storage backend.
+    Orchestrates a :class:`Storage` backend (file storage) and a
+    :class:`MetadataStore` backend (structured metadata) behind a
+    single, unified API.
 
-        Parameters
-        ----------
-        storage : storage.Storage
-            An instance of a storage backend that implements the Storage interface.
-        sql_connector : sql_connector.SQLiteConnector
-            An instance of the SQLiteConnector for database operations.
-        """
+    Parameters
+    ----------
+    storage : Storage
+        The file storage backend.
+    metadata_store : MetadataStore
+        The metadata storage backend.
+    """
+
+    def __init__(self, storage: Storage, metadata_store: MetadataStore) -> None:
         self._storage = storage
-        self._sql_connector = sql_connector
-        self._METADATA_TABLE = "metadata"
-        self._create_metadata_db()
+        self._metadata_store = metadata_store
 
-    def _create_metadata_db(self) -> None:
-        CREATE_STATEMENT = f"""
-            CREATE TABLE IF NOT EXISTS {self._METADATA_TABLE} (
-                name text PRIMARY KEY,
-                path text NOT NULL,
-                size integer NOT NULL,
-                media_type text NOT NULL CHECK(media_type IN ('VIDEO', 'IMAGE')),
-                format text NOT NULL,
-                inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );"""
-        self._sql_connector.execute_query(query=CREATE_STATEMENT)
-
-    def insert(self, file: pathlib.Path, media_type: MediaType) -> None:
-        """Insert a media data.
+    def insert(
+        self,
+        file: pathlib.Path,
+        media_type: MediaType,
+        captured_at: datetime,
+        *,
+        duration: float | None = None,
+        device_id: str | None = None,
+        labels: list[str] | None = None,
+        description: str | None = None,
+        embedding: list[float] | None = None,
+    ) -> str:
+        """Insert a media file and its metadata.
 
         Parameters
         ----------
         file : pathlib.Path
-            The full path of the file to be inserted.
+            Path to the media file to store.
         media_type : MediaType
-            The type of the data, either VIDEO or IMAGE.
+            The type of media (IMAGE or VIDEO).
+        captured_at : datetime
+            When the media was captured.
+        duration : float | None
+            Duration in seconds (video only).
+        device_id : str | None
+            Identifier of the capturing device.
+        labels : list[str] | None
+            Semantic labels, e.g. ``["person", "car"]``.
+        description : str | None
+            Text summary of the media content.
+        embedding : list[float] | None
+            Vector embedding for semantic search.
+
+        Returns
+        -------
+        str
+            The ID of the inserted record.
         """
-        INSERT_STATEMENT = f"""
-            INSERT INTO {self._METADATA_TABLE} (
-                    name,
-                    path,
-                    size,
-                    media_type,
-                    format,
-                    inserted_at,
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?);
-            """
-        self._storage.save(file, mode=storage.SaveMode.COPY)
-        self._sql_connector.execute_query(
-            query=INSERT_STATEMENT,
-            params=(
-                file.name,
-                str(file),
-                file.stat().st_size,
-                media_type.value,
-                file.suffix.lstrip("."),
-                datetime.now().isoformat(),
-            ),
+        record = MediaRecord(
+            media_type=media_type,
+            captured_at=captured_at,
+            format=file.suffix.lstrip("."),
+            size=file.stat().st_size,
+            duration=duration,
+            device_id=device_id,
+            labels=labels or [],
+            description=description,
+            embedding=embedding,
         )
 
-    def delete(self, name: str) -> None:
-        """Delete a file.
+        storage_name = f"{record.id}.{record.format}"
+        self._storage.save(file, mode=SaveMode.COPY, name=storage_name)
+        self._metadata_store.insert(record)
+        return record.id
+
+    def delete(self, id: str) -> None:
+        """Delete a media record and its file.
 
         Parameters
         ----------
-        name : str
-            The name of the file to delete.
+        id : str
+            The record ID.
+
+        Raises
+        ------
+        KeyError
+            If no record with the given ID exists.
         """
-        DELETE_STATEMENT = f"""
-            DELETE FROM {self._METADATA_TABLE} WHERE name = ?;
-            """
-        self._sql_connector.execute_query(query=DELETE_STATEMENT, params=(name,))
-        self._storage.delete(name=name)
+        record = self._metadata_store.get(id)
+        storage_name = f"{record.id}.{record.format}"
+        self._metadata_store.delete(id)
+        self._storage.delete(storage_name)
+
+    def get(self, id: str) -> MediaRecord:
+        """Get a single record by ID.
+
+        Parameters
+        ----------
+        id : str
+            The record ID.
+
+        Returns
+        -------
+        MediaRecord
+            The matching record.
+
+        Raises
+        ------
+        KeyError
+            If no record with the given ID exists.
+        """
+        return self._metadata_store.get(id)
+
+    def retrieve(self, id: str, dest: pathlib.Path) -> None:
+        """Copy a media file to the given destination.
+
+        Parameters
+        ----------
+        id : str
+            The record ID.
+        dest : pathlib.Path
+            Destination path where the file will be copied.
+
+        Raises
+        ------
+        KeyError
+            If no record with the given ID exists.
+        """
+        record = self._metadata_store.get(id)
+        storage_name = f"{record.id}.{record.format}"
+        self._storage.retrieve(storage_name, dest)
+
+    def query(
+        self,
+        *,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        media_type: MediaType | None = None,
+        device_id: str | None = None,
+        labels: list[str] | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[MediaRecord]:
+        """Query records with composable filters.
+
+        All parameters are optional. When multiple filters are provided, they
+        are combined with AND semantics. ``labels`` uses ANY-match semantics.
+
+        Parameters
+        ----------
+        start : datetime | None
+            Include records captured at or after this time.
+        end : datetime | None
+            Include records captured before this time.
+        media_type : MediaType | None
+            Filter by media type.
+        device_id : str | None
+            Filter by device ID.
+        labels : list[str] | None
+            Filter by labels (ANY-match).
+        limit : int | None
+            Maximum number of records to return.
+        offset : int | None
+            Number of records to skip.
+
+        Returns
+        -------
+        list[MediaRecord]
+            Matching records ordered by ``captured_at`` descending.
+        """
+        return self._metadata_store.query(
+            start=start,
+            end=end,
+            media_type=media_type,
+            device_id=device_id,
+            labels=labels,
+            limit=limit,
+            offset=offset,
+        )
+
+    def search_similar(
+        self,
+        embedding: list[float],
+        *,
+        limit: int | None = None,
+        threshold: float | None = None,
+    ) -> list[MediaRecord]:
+        """Search for records similar to the given embedding.
+
+        Parameters
+        ----------
+        embedding : list[float]
+            The query embedding vector.
+        limit : int | None
+            Maximum number of results.
+        threshold : float | None
+            Minimum similarity score (0-1).
+
+        Returns
+        -------
+        list[MediaRecord]
+            Matching records ordered by similarity descending.
+        """
+        return self._metadata_store.search_similar(
+            embedding, limit=limit, threshold=threshold
+        )
