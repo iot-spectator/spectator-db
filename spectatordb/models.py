@@ -79,6 +79,7 @@ class MediaRecord:
     content_hash: str | None = None
 
     def __post_init__(self) -> None:
+        """Validate embedding field consistency."""
         embedding_fields = (self.embedding, self.embedding_model, self.embedding_dim)
         set_count = sum(f is not None for f in embedding_fields)
         if 0 < set_count < 3:

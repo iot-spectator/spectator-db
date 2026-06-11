@@ -124,7 +124,7 @@ class SpectatorDB:
         embedding: list[float] | None | _UnsetType = UNSET,
         embedding_model: str | None | _UnsetType = UNSET,
     ) -> None:
-        """Partially update the enrichment fields of a stored record.
+        """Update enrichment fields of a stored record, skipping unset parameters.
 
         Only fields that are not ``UNSET`` are written. ``embedding`` and
         ``embedding_model`` must be updated together.

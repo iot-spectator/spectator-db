@@ -170,6 +170,7 @@ class SQLiteMetadataStore(MetadataStore):
 
     @override
     def insert(self, record: MediaRecord) -> str:
+        """See base class."""
         now = datetime.now(timezone.utc)
         record.inserted_at = now
         record.captured_at = _to_utc(record.captured_at)
@@ -209,6 +210,7 @@ class SQLiteMetadataStore(MetadataStore):
 
     @override
     def get(self, id: str) -> MediaRecord:
+        """See base class."""
         cursor = self._connection.execute("SELECT * FROM media WHERE id = ?", (id,))
         row = cursor.fetchone()
         if row is None:
@@ -217,6 +219,7 @@ class SQLiteMetadataStore(MetadataStore):
 
     @override
     def delete(self, id: str) -> None:
+        """See base class."""
         with self._lock:
             cursor = self._connection.execute("DELETE FROM media WHERE id = ?", (id,))
             self._connection.commit()
@@ -233,6 +236,7 @@ class SQLiteMetadataStore(MetadataStore):
         embedding: list[float] | None | _UnsetType = UNSET,
         embedding_model: str | None | _UnsetType = UNSET,
     ) -> None:
+        """See base class."""
         embedding_unset = isinstance(embedding, _UnsetType)
         model_unset = isinstance(embedding_model, _UnsetType)
         if embedding_unset != model_unset:
@@ -289,6 +293,7 @@ class SQLiteMetadataStore(MetadataStore):
         limit: int | None = None,
         offset: int | None = None,
     ) -> list[MediaRecord]:
+        """See base class."""
         clauses: list[str] = []
         params: list[str | int | float] = []
 
@@ -337,6 +342,7 @@ class SQLiteMetadataStore(MetadataStore):
         limit: int | None = None,
         threshold: float | None = None,
     ) -> list[MediaRecord]:
+        """See base class."""
         cursor = self._connection.execute(
             "SELECT * FROM media WHERE embedding_model = ? AND embedding IS NOT NULL",
             (model,),

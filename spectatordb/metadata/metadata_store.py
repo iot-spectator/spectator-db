@@ -75,7 +75,7 @@ class MetadataStore(abc.ABC):
         embedding: list[float] | None | _UnsetType = UNSET,
         embedding_model: str | None | _UnsetType = UNSET,
     ) -> None:
-        """Partially update the enrichment fields of a record.
+        """Update enrichment fields of a record, skipping unset parameters.
 
         Only fields that are not ``UNSET`` are written. Pass ``None`` to
         explicitly clear a field. ``embedding`` and ``embedding_model``
