@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime, timezone
 
 from spectatordb.metadata.sqlite_metadata_store import SQLiteMetadataStore
-from spectatordb.models import MediaType, UNSET
+from spectatordb.models import MediaType
 from spectatordb.spectatordb import SpectatorDB
 from spectatordb.storage.local_storage import LocalStorage
 

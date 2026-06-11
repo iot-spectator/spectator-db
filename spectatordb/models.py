@@ -83,11 +83,13 @@ class MediaRecord:
         set_count = sum(f is not None for f in embedding_fields)
         if 0 < set_count < 3:
             raise ValueError(
-                "embedding, embedding_model, and embedding_dim must all be set together or all be None"
+                "embedding, embedding_model, and embedding_dim must all be"
+                " set together or all be None"
             )
         if self.embedding is not None and len(self.embedding) != self.embedding_dim:
             raise ValueError(
-                f"embedding length {len(self.embedding)} does not match embedding_dim {self.embedding_dim}"
+                f"embedding length {len(self.embedding)} does not match"
+                f" embedding_dim {self.embedding_dim}"
             )
 
 

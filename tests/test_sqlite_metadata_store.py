@@ -3,9 +3,10 @@ import sqlite3
 import pytest
 
 from datetime import datetime, timezone
+from typing import Any
 
 from spectatordb.metadata.sqlite_metadata_store import SQLiteMetadataStore
-from spectatordb.models import MediaRecord, MediaType, UNSET
+from spectatordb.models import MediaRecord, MediaType
 
 
 @pytest.fixture
@@ -13,8 +14,8 @@ def store(tmp_path):
     return SQLiteMetadataStore(db_path=tmp_path / "test.db")
 
 
-def _make_record(**overrides):
-    defaults = dict(
+def _make_record(**overrides: Any) -> MediaRecord:
+    defaults: dict[str, Any] = dict(
         media_type=MediaType.IMAGE,
         captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         format="jpg",

@@ -23,9 +23,9 @@ def _to_utc(dt: datetime) -> datetime:
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two vectors."""
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(x * x for x in b) ** 0.5
+    dot: float = sum((x * y for x, y in zip(a, b)), 0.0)
+    norm_a: float = sum((x * x for x in a), 0.0) ** 0.5
+    norm_b: float = sum((x * x for x in b), 0.0) ** 0.5
     if norm_a == 0.0 or norm_b == 0.0:
         return 0.0
     return dot / (norm_a * norm_b)
@@ -125,7 +125,7 @@ class SQLiteMetadataStore(MetadataStore):
                 "ALTER TABLE media ADD COLUMN embedding_dim INTEGER"
             )
             self._connection.execute("ALTER TABLE media ADD COLUMN content_hash TEXT")
-            self._connection.execute(f"PRAGMA user_version = 1")
+            self._connection.execute("PRAGMA user_version = 1")
             self._connection.commit()
 
     # ------------------------------------------------------------------
