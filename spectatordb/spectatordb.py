@@ -5,7 +5,13 @@ import pathlib
 from datetime import datetime, timezone
 
 from spectatordb.metadata.metadata_store import MetadataStore
-from spectatordb.models import MediaRecord, MediaType, ReconcileReport, _UnsetType, UNSET
+from spectatordb.models import (
+    MediaRecord,
+    MediaType,
+    ReconcileReport,
+    _UnsetType,
+    UNSET,
+)
 from spectatordb.storage.storage import SaveMode, Storage
 
 
@@ -311,7 +317,9 @@ class SpectatorDB:
 
         expected_names = {f"{r.id}.{r.format}" for r in all_records}
         orphaned = sorted(stored_names - expected_names)
-        dangling = [r.id for r in all_records if f"{r.id}.{r.format}" not in stored_names]
+        dangling = [
+            r.id for r in all_records if f"{r.id}.{r.format}" not in stored_names
+        ]
 
         report = ReconcileReport(
             orphaned_files=orphaned,

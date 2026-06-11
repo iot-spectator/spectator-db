@@ -11,7 +11,6 @@ from typing import override
 from spectatordb.metadata.metadata_store import MetadataStore
 from spectatordb.models import MediaRecord, MediaType, _UnsetType, UNSET
 
-
 _SCHEMA_VERSION = 1
 
 
@@ -91,8 +90,7 @@ class SQLiteMetadataStore(MetadataStore):
             self._migrate(from_version=version)
 
     def _create_tables(self) -> None:
-        self._connection.executescript(
-            """
+        self._connection.executescript("""
             CREATE TABLE IF NOT EXISTS media (
                 id              TEXT PRIMARY KEY,
                 media_type      TEXT NOT NULL CHECK(media_type IN ('image', 'video')),
@@ -116,8 +114,7 @@ class SQLiteMetadataStore(MetadataStore):
                 ON media(media_type);
             CREATE INDEX IF NOT EXISTS idx_media_device_id
                 ON media(device_id);
-            """
-        )
+            """)
 
     def _migrate(self, from_version: int) -> None:
         if from_version < 1:
@@ -127,9 +124,7 @@ class SQLiteMetadataStore(MetadataStore):
             self._connection.execute(
                 "ALTER TABLE media ADD COLUMN embedding_dim INTEGER"
             )
-            self._connection.execute(
-                "ALTER TABLE media ADD COLUMN content_hash TEXT"
-            )
+            self._connection.execute("ALTER TABLE media ADD COLUMN content_hash TEXT")
             self._connection.execute(f"PRAGMA user_version = 1")
             self._connection.commit()
 
@@ -143,10 +138,14 @@ class SQLiteMetadataStore(MetadataStore):
             captured_at = captured_at.replace(tzinfo=timezone.utc)
 
         embedding_raw = row["embedding"]
-        embedding: list[float] | None = json.loads(embedding_raw) if embedding_raw else None
+        embedding: list[float] | None = (
+            json.loads(embedding_raw) if embedding_raw else None
+        )
         embedding_model: str | None = row["embedding_model"]
         embedding_dim_raw = row["embedding_dim"]
-        embedding_dim: int | None = int(embedding_dim_raw) if embedding_dim_raw is not None else None
+        embedding_dim: int | None = (
+            int(embedding_dim_raw) if embedding_dim_raw is not None else None
+        )
 
         return MediaRecord(
             id=row["id"],
@@ -195,7 +194,11 @@ class SQLiteMetadataStore(MetadataStore):
                     record.device_id,
                     json.dumps(record.labels),
                     record.description,
-                    json.dumps(record.embedding) if record.embedding is not None else None,
+                    (
+                        json.dumps(record.embedding)
+                        if record.embedding is not None
+                        else None
+                    ),
                     record.embedding_model,
                     record.embedding_dim,
                     record.content_hash,
@@ -233,9 +236,7 @@ class SQLiteMetadataStore(MetadataStore):
         embedding_unset = isinstance(embedding, _UnsetType)
         model_unset = isinstance(embedding_model, _UnsetType)
         if embedding_unset != model_unset:
-            raise ValueError(
-                "embedding and embedding_model must be updated together"
-            )
+            raise ValueError("embedding and embedding_model must be updated together")
 
         clauses: list[str] = []
         params: list[object] = []
@@ -250,13 +251,17 @@ class SQLiteMetadataStore(MetadataStore):
 
         if not embedding_unset:
             if embedding is None:
-                clauses.extend(["embedding = ?", "embedding_model = ?", "embedding_dim = ?"])
+                clauses.extend(
+                    ["embedding = ?", "embedding_model = ?", "embedding_dim = ?"]
+                )
                 params.extend([None, None, None])
             else:
                 if not isinstance(embedding, list):
                     raise TypeError("embedding must be a list of floats or None")
                 dim = len(embedding)
-                clauses.extend(["embedding = ?", "embedding_model = ?", "embedding_dim = ?"])
+                clauses.extend(
+                    ["embedding = ?", "embedding_model = ?", "embedding_dim = ?"]
+                )
                 params.extend([json.dumps(embedding), embedding_model, dim])
 
         if not clauses:

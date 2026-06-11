@@ -33,7 +33,8 @@ def sample_video(tmp_path):
 class TestInsert:
     def test_insert_returns_id(self, db, sample_image):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         assert isinstance(record_id, str)
@@ -41,7 +42,8 @@ class TestInsert:
 
     def test_insert_stores_file(self, db, sample_image, tmp_path):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         dest = tmp_path / "retrieved.jpg"
@@ -51,7 +53,8 @@ class TestInsert:
 
     def test_insert_with_metadata(self, db, sample_video):
         record_id = db.insert(
-            sample_video, MediaType.VIDEO,
+            sample_video,
+            MediaType.VIDEO,
             captured_at=datetime(2025, 6, 15, 14, 0, 0, tzinfo=timezone.utc),
             duration=10.5,
             device_id="pi-01",
@@ -69,7 +72,8 @@ class TestInsert:
 
     def test_insert_with_embedding(self, db, sample_image):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
             embedding=[0.1, 0.2, 0.3],
             embedding_model="test-model",
@@ -88,7 +92,8 @@ class TestInsert:
 
         with pytest.raises(Exception):
             db.insert(
-                sample_image, MediaType.IMAGE,
+                sample_image,
+                MediaType.IMAGE,
                 captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
             )
 
@@ -99,7 +104,8 @@ class TestInsert:
 class TestGet:
     def test_get_returns_record(self, db, sample_image):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         record = db.get(record_id)
@@ -115,7 +121,8 @@ class TestGet:
 class TestDelete:
     def test_delete_removes_record_and_file(self, db, sample_image, tmp_path):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         db.delete(record_id)
@@ -133,7 +140,8 @@ class TestDelete:
 class TestRetrieve:
     def test_retrieve_copies_file(self, db, sample_image, tmp_path):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         dest = tmp_path / "output.jpg"
@@ -149,11 +157,13 @@ class TestRetrieve:
 class TestQuery:
     def test_query_returns_all(self, db, sample_image):
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 10, 0, 0, tzinfo=timezone.utc),
         )
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         results = db.query()
@@ -161,11 +171,13 @@ class TestQuery:
 
     def test_query_filters_by_media_type(self, db, sample_image, sample_video):
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         db.insert(
-            sample_video, MediaType.VIDEO,
+            sample_video,
+            MediaType.VIDEO,
             captured_at=datetime(2025, 6, 15, 14, 0, 0, tzinfo=timezone.utc),
             duration=5.0,
         )
@@ -175,15 +187,18 @@ class TestQuery:
 
     def test_query_filters_by_time_range(self, db, sample_image):
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 8, 0, 0, tzinfo=timezone.utc),
         )
         id2 = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 18, 0, 0, tzinfo=timezone.utc),
         )
         results = db.query(
@@ -195,12 +210,14 @@ class TestQuery:
 
     def test_query_filters_by_labels(self, db, sample_image):
         id1 = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
             labels=["person"],
         )
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 14, 0, 0, tzinfo=timezone.utc),
             labels=["car"],
         )
@@ -212,17 +229,21 @@ class TestQuery:
 class TestUpdateEnrichment:
     def test_update_labels_and_description(self, db, sample_image):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
-        db.update_enrichment(record_id, labels=["bird"], description="A bird on a branch")
+        db.update_enrichment(
+            record_id, labels=["bird"], description="A bird on a branch"
+        )
         record = db.get(record_id)
         assert record.labels == ["bird"]
         assert record.description == "A bird on a branch"
 
     def test_update_embedding(self, db, sample_image):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         db.update_enrichment(
@@ -241,7 +262,8 @@ class TestUpdateEnrichment:
 
     def test_unset_fields_unchanged(self, db, sample_image):
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
             labels=["original"],
         )
@@ -254,13 +276,15 @@ class TestUpdateEnrichment:
 class TestSearchSimilar:
     def test_search_similar(self, db, sample_image):
         id1 = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
             embedding=[1.0, 0.0, 0.0],
             embedding_model="test-model",
         )
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 13, 0, 0, tzinfo=timezone.utc),
             embedding=[0.0, 1.0, 0.0],
             embedding_model="test-model",
@@ -273,7 +297,8 @@ class TestSearchSimilar:
 class TestReconcile:
     def test_reconcile_clean_db(self, db, sample_image):
         db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         report = db.reconcile()
@@ -304,7 +329,8 @@ class TestReconcile:
         db = SpectatorDB(storage=storage, metadata_store=metadata_store)
 
         record_id = db.insert(
-            sample_image, MediaType.IMAGE,
+            sample_image,
+            MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
         # Remove the file directly, leaving a dangling row

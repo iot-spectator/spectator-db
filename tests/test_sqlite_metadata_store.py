@@ -154,8 +154,12 @@ class TestUpdateEnrichment:
 
 class TestQuery:
     def test_query_no_filters(self, store):
-        r1 = _make_record(captured_at=datetime(2025, 6, 15, 10, 0, 0, tzinfo=timezone.utc))
-        r2 = _make_record(captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc))
+        r1 = _make_record(
+            captured_at=datetime(2025, 6, 15, 10, 0, 0, tzinfo=timezone.utc)
+        )
+        r2 = _make_record(
+            captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+        )
         store.insert(r1)
         store.insert(r2)
         results = store.query()
@@ -164,9 +168,15 @@ class TestQuery:
         assert results[1].id == r1.id
 
     def test_query_by_time_range(self, store):
-        r1 = _make_record(captured_at=datetime(2025, 6, 15, 8, 0, 0, tzinfo=timezone.utc))
-        r2 = _make_record(captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc))
-        r3 = _make_record(captured_at=datetime(2025, 6, 15, 18, 0, 0, tzinfo=timezone.utc))
+        r1 = _make_record(
+            captured_at=datetime(2025, 6, 15, 8, 0, 0, tzinfo=timezone.utc)
+        )
+        r2 = _make_record(
+            captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+        )
+        r3 = _make_record(
+            captured_at=datetime(2025, 6, 15, 18, 0, 0, tzinfo=timezone.utc)
+        )
         store.insert(r1)
         store.insert(r2)
         store.insert(r3)
@@ -210,9 +220,11 @@ class TestQuery:
 
     def test_query_with_limit_and_offset(self, store):
         for i in range(5):
-            store.insert(_make_record(
-                captured_at=datetime(2025, 6, 15, i, 0, 0, tzinfo=timezone.utc)
-            ))
+            store.insert(
+                _make_record(
+                    captured_at=datetime(2025, 6, 15, i, 0, 0, tzinfo=timezone.utc)
+                )
+            )
         results = store.query(limit=2, offset=1)
         assert len(results) == 2
 
@@ -231,7 +243,9 @@ class TestQuery:
         )
         store.insert(r1)
         store.insert(r2)
-        results = store.query(media_type=MediaType.IMAGE, device_id="pi-01", labels=["person"])
+        results = store.query(
+            media_type=MediaType.IMAGE, device_id="pi-01", labels=["person"]
+        )
         assert len(results) == 1
         assert results[0].id == r1.id
 
@@ -269,7 +283,9 @@ class TestSearchSimilar:
         store.insert(r1)
         store.insert(r2)
 
-        results = store.search_similar([1.0, 0.0, 0.0], model="test-model", threshold=0.9)
+        results = store.search_similar(
+            [1.0, 0.0, 0.0], model="test-model", threshold=0.9
+        )
         assert len(results) == 1
         assert results[0].id == r1.id
 
@@ -293,11 +309,13 @@ class TestSearchSimilar:
 
     def test_limit(self, store):
         for _ in range(5):
-            store.insert(_make_record(
-                embedding=[1.0, 0.0],
-                embedding_model="test-model",
-                embedding_dim=2,
-            ))
+            store.insert(
+                _make_record(
+                    embedding=[1.0, 0.0],
+                    embedding_model="test-model",
+                    embedding_dim=2,
+                )
+            )
         results = store.search_similar([1.0, 0.0], model="test-model", limit=3)
         assert len(results) == 3
 
@@ -346,8 +364,19 @@ class TestSchemaMigration:
         """)
         conn.execute(
             "INSERT INTO media VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            ("old-id", "image", "2025-01-01T00:00:00+00:00",
-             "2025-01-01T00:00:01+00:00", None, "jpg", 100, None, "[]", None, None),
+            (
+                "old-id",
+                "image",
+                "2025-01-01T00:00:00+00:00",
+                "2025-01-01T00:00:01+00:00",
+                None,
+                "jpg",
+                100,
+                None,
+                "[]",
+                None,
+                None,
+            ),
         )
         conn.commit()
         conn.close()
