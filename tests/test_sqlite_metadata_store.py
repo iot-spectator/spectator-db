@@ -1,9 +1,11 @@
+import sqlite3
+
 import pytest
 
 from datetime import datetime, timezone
 
 from spectatordb.metadata.sqlite_metadata_store import SQLiteMetadataStore
-from spectatordb.models import MediaRecord, MediaType
+from spectatordb.models import MediaRecord, MediaType, UNSET
 
 
 @pytest.fixture
@@ -52,6 +54,8 @@ class TestInsertAndGet:
             labels=["dog"],
             description="A dog running",
             embedding=[0.1, 0.2, 0.3],
+            embedding_model="clip-vit-b32",
+            embedding_dim=3,
         )
         store.insert(record)
         result = store.get(record.id)
@@ -59,6 +63,16 @@ class TestInsertAndGet:
         assert result.duration == 10.5
         assert result.description == "A dog running"
         assert result.embedding == [0.1, 0.2, 0.3]
+        assert result.embedding_model == "clip-vit-b32"
+        assert result.embedding_dim == 3
+
+    def test_insert_normalizes_captured_at_to_utc(self, store):
+        naive_dt = datetime(2025, 6, 15, 12, 0, 0)
+        record = _make_record(captured_at=naive_dt)
+        store.insert(record)
+        result = store.get(record.id)
+        assert result.captured_at.tzinfo is not None
+        assert result.captured_at.tzinfo == timezone.utc
 
 
 class TestDelete:
@@ -74,6 +88,70 @@ class TestDelete:
             store.delete("nonexistent-id")
 
 
+class TestUpdateEnrichment:
+    def test_update_labels(self, store):
+        record = _make_record()
+        store.insert(record)
+        store.update_enrichment(record.id, labels=["cat", "dog"])
+        result = store.get(record.id)
+        assert result.labels == ["cat", "dog"]
+
+    def test_update_description(self, store):
+        record = _make_record()
+        store.insert(record)
+        store.update_enrichment(record.id, description="A cat on a mat")
+        result = store.get(record.id)
+        assert result.description == "A cat on a mat"
+
+    def test_update_embedding(self, store):
+        record = _make_record()
+        store.insert(record)
+        store.update_enrichment(
+            record.id,
+            embedding=[0.5, 0.6, 0.7],
+            embedding_model="clip-vit-b32",
+        )
+        result = store.get(record.id)
+        assert result.embedding == [0.5, 0.6, 0.7]
+        assert result.embedding_model == "clip-vit-b32"
+        assert result.embedding_dim == 3
+
+    def test_clear_embedding(self, store):
+        record = _make_record(
+            embedding=[0.1, 0.2],
+            embedding_model="test-model",
+            embedding_dim=2,
+        )
+        store.insert(record)
+        store.update_enrichment(record.id, embedding=None, embedding_model=None)
+        result = store.get(record.id)
+        assert result.embedding is None
+        assert result.embedding_model is None
+        assert result.embedding_dim is None
+
+    def test_unset_fields_not_changed(self, store):
+        record = _make_record(labels=["original"], description="keep me")
+        store.insert(record)
+        store.update_enrichment(record.id, labels=["updated"])
+        result = store.get(record.id)
+        assert result.labels == ["updated"]
+        assert result.description == "keep me"
+
+    def test_update_missing_raises(self, store):
+        with pytest.raises(KeyError):
+            store.update_enrichment("nonexistent-id", labels=["x"])
+
+    def test_embedding_without_model_raises(self, store):
+        record = _make_record()
+        store.insert(record)
+        with pytest.raises(ValueError):
+            store.update_enrichment(record.id, embedding=[0.1, 0.2])
+
+    def test_noop_update_on_missing_raises(self, store):
+        with pytest.raises(KeyError):
+            store.update_enrichment("nonexistent-id")
+
+
 class TestQuery:
     def test_query_no_filters(self, store):
         r1 = _make_record(captured_at=datetime(2025, 6, 15, 10, 0, 0, tzinfo=timezone.utc))
@@ -82,7 +160,6 @@ class TestQuery:
         store.insert(r2)
         results = store.query()
         assert len(results) == 2
-        # Ordered by captured_at descending
         assert results[0].id == r2.id
         assert results[1].id == r1.id
 
@@ -160,6 +237,125 @@ class TestQuery:
 
 
 class TestSearchSimilar:
-    def test_search_similar_not_implemented(self, store):
-        with pytest.raises(NotImplementedError):
-            store.search_similar([0.1, 0.2, 0.3])
+    def test_returns_similar_records(self, store):
+        r1 = _make_record(
+            embedding=[1.0, 0.0, 0.0],
+            embedding_model="test-model",
+            embedding_dim=3,
+        )
+        r2 = _make_record(
+            embedding=[0.0, 1.0, 0.0],
+            embedding_model="test-model",
+            embedding_dim=3,
+        )
+        store.insert(r1)
+        store.insert(r2)
+
+        results = store.search_similar([1.0, 0.0, 0.0], model="test-model")
+        assert len(results) == 2
+        assert results[0].id == r1.id  # most similar to [1,0,0]
+
+    def test_threshold_filters_results(self, store):
+        r1 = _make_record(
+            embedding=[1.0, 0.0, 0.0],
+            embedding_model="test-model",
+            embedding_dim=3,
+        )
+        r2 = _make_record(
+            embedding=[0.0, 1.0, 0.0],
+            embedding_model="test-model",
+            embedding_dim=3,
+        )
+        store.insert(r1)
+        store.insert(r2)
+
+        results = store.search_similar([1.0, 0.0, 0.0], model="test-model", threshold=0.9)
+        assert len(results) == 1
+        assert results[0].id == r1.id
+
+    def test_model_scoping(self, store):
+        r1 = _make_record(
+            embedding=[1.0, 0.0],
+            embedding_model="model-a",
+            embedding_dim=2,
+        )
+        r2 = _make_record(
+            embedding=[1.0, 0.0],
+            embedding_model="model-b",
+            embedding_dim=2,
+        )
+        store.insert(r1)
+        store.insert(r2)
+
+        results = store.search_similar([1.0, 0.0], model="model-a")
+        assert len(results) == 1
+        assert results[0].id == r1.id
+
+    def test_limit(self, store):
+        for _ in range(5):
+            store.insert(_make_record(
+                embedding=[1.0, 0.0],
+                embedding_model="test-model",
+                embedding_dim=2,
+            ))
+        results = store.search_similar([1.0, 0.0], model="test-model", limit=3)
+        assert len(results) == 3
+
+    def test_no_results_for_unknown_model(self, store):
+        r1 = _make_record(
+            embedding=[1.0, 0.0],
+            embedding_model="model-a",
+            embedding_dim=2,
+        )
+        store.insert(r1)
+        results = store.search_similar([1.0, 0.0], model="unknown-model")
+        assert results == []
+
+    def test_excludes_records_without_embedding(self, store):
+        r1 = _make_record()  # no embedding
+        r2 = _make_record(
+            embedding=[1.0, 0.0],
+            embedding_model="test-model",
+            embedding_dim=2,
+        )
+        store.insert(r1)
+        store.insert(r2)
+        results = store.search_similar([1.0, 0.0], model="test-model")
+        assert len(results) == 1
+        assert results[0].id == r2.id
+
+
+class TestSchemaMigration:
+    def test_migrates_pre_version_database(self, tmp_path):
+        db_path = tmp_path / "old.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.executescript("""
+            CREATE TABLE media (
+                id          TEXT PRIMARY KEY,
+                media_type  TEXT NOT NULL,
+                captured_at TEXT NOT NULL,
+                inserted_at TEXT NOT NULL,
+                duration    REAL,
+                format      TEXT NOT NULL,
+                size        INTEGER NOT NULL,
+                device_id   TEXT,
+                labels      TEXT NOT NULL DEFAULT '[]',
+                description TEXT,
+                embedding   TEXT
+            );
+        """)
+        conn.execute(
+            "INSERT INTO media VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            ("old-id", "image", "2025-01-01T00:00:00+00:00",
+             "2025-01-01T00:00:01+00:00", None, "jpg", 100, None, "[]", None, None),
+        )
+        conn.commit()
+        conn.close()
+
+        store = SQLiteMetadataStore(db_path=db_path)
+        record = store.get("old-id")
+        assert record.id == "old-id"
+        assert record.embedding_model is None
+        assert record.embedding_dim is None
+        assert record.content_hash is None
+        store.close()
