@@ -1,6 +1,6 @@
 [project]
 name = "spectator-db"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
     {name="IoT Spectator", email="shun@formosa1544.com"}
 ]
@@ -12,6 +12,9 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 exclude = ["tests"]
+
+[tool.setuptools.package-data]
+spectatordb = ["py.typed"]
 
 [project.urls]
 repository = "https://github.com/iot-spectator/spectator-db"
