@@ -172,4 +172,17 @@ class MetadataStore(abc.ABC):
         -------
         list[MediaRecord]
             Matching records ordered by similarity descending.
+
+        Raises
+        ------
+        ValueError
+            If the query embedding's dimension does not match the dimension
+            of the stored vectors for ``model``.
+        """
+
+    def close(self) -> None:
+        """Release any resources held by the backend.
+
+        The default implementation does nothing. Backends that hold open
+        handles or connections should override this.
         """

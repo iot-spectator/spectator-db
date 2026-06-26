@@ -3,6 +3,8 @@
 import pathlib
 
 from datetime import datetime, timezone
+from types import TracebackType
+from typing import Self
 
 from spectatordb.metadata.metadata_store import MetadataStore
 from spectatordb.models import (
@@ -39,6 +41,29 @@ class SpectatorDB:
     def __init__(self, storage: Storage, metadata_store: MetadataStore) -> None:
         self._storage = storage
         self._metadata_store = metadata_store
+
+    def close(self) -> None:
+        """Release resources held by the storage and metadata backends.
+
+        After ``close()`` the instance must not be used again. Safe to call
+        more than once. ``SpectatorDB`` is also a context manager, so prefer
+        ``with SpectatorDB(...) as db:`` where possible.
+        """
+        self._metadata_store.close()
+        self._storage.close()
+
+    def __enter__(self) -> Self:
+        """Enter the runtime context and return this instance."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Exit the runtime context, closing backend resources."""
+        self.close()
 
     def insert(
         self,
@@ -295,6 +320,12 @@ class SpectatorDB:
         -------
         list[MediaRecord]
             Matching records ordered by similarity descending.
+
+        Raises
+        ------
+        ValueError
+            If ``embedding``'s dimension does not match the dimension of the
+            stored vectors for ``model``.
         """
         return self._metadata_store.search_similar(
             embedding, model=model, limit=limit, threshold=threshold
