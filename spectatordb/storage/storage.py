@@ -68,3 +68,10 @@ class Storage(abc.ABC):
     @abc.abstractmethod
     def list_all(self) -> list[pathlib.Path]:
         """Return a list of paths for all stored files."""
+
+    def close(self) -> None:
+        """Release any resources held by the backend.
+
+        The default implementation does nothing. Backends that hold open
+        handles or connections should override this.
+        """

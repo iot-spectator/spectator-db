@@ -87,7 +87,7 @@ class LocalStorage(storage.Storage):
         """
         target_path = self._storage_dir / name
         if not target_path.exists():
-            raise FileNotFoundError(f"Video '{name}' not found.")
+            raise FileNotFoundError(f"File '{name}' not found.")
         shutil.copy2(target_path, dest)
 
     @override

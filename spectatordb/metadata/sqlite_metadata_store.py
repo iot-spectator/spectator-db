@@ -61,6 +61,7 @@ class SQLiteMetadataStore(MetadataStore):
         self._lock = threading.Lock()
         self._init_schema()
 
+    @override
     def close(self) -> None:
         """Close the database connection."""
         self._connection.close()
@@ -354,6 +355,12 @@ class SQLiteMetadataStore(MetadataStore):
             record = self._row_to_record(row)
             if record.embedding is None:
                 continue
+            if len(record.embedding) != len(embedding):
+                raise ValueError(
+                    f"Query embedding dimension {len(embedding)} does not match"
+                    f" stored dimension {len(record.embedding)} for model"
+                    f" '{model}'"
+                )
             score = _cosine_similarity(embedding, record.embedding)
             if threshold is None or score >= threshold:
                 scored.append((score, record))
