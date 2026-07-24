@@ -6,9 +6,14 @@ authors = [
 ]
 description = "A database for storing and managing images and videos."
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 license = {text = "MIT License"}
 dependencies = []
+
+[project.optional-dependencies]
+# Richer EXIF parsing (HEIC and formats the zero-dep reader can't handle).
+# The core never imports Pillow; it is only used when this extra is installed.
+exif = ["Pillow>=10.0"]
 
 [tool.setuptools.packages.find]
 exclude = ["tests"]
