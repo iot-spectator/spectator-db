@@ -51,6 +51,21 @@ class MetadataStore(abc.ABC):
         """
 
     @abc.abstractmethod
+    def exists(self, content_hash: str) -> bool:
+        """Return whether any record has the given SHA-256 content hash.
+
+        Parameters
+        ----------
+        content_hash : str
+            The SHA-256 hex digest to look for.
+
+        Returns
+        -------
+        bool
+            ``True`` if a matching record exists.
+        """
+
+    @abc.abstractmethod
     def delete(self, id: str) -> None:
         """Delete a record by ID.
 
@@ -141,6 +156,60 @@ class MetadataStore(abc.ABC):
         -------
         list[MediaRecord]
             Matching records ordered by ``captured_at`` descending.
+        """
+
+    @abc.abstractmethod
+    def count(
+        self,
+        *,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        media_type: MediaType | None = None,
+        device_id: str | None = None,
+        labels: list[str] | None = None,
+    ) -> int:
+        """Count records matching composable filters.
+
+        Accepts the same filters as :meth:`query` (AND-combined, labels are
+        ANY-match) and returns the number of matching records. Useful for
+        paging a gallery without materializing every row.
+
+        Returns
+        -------
+        int
+            The number of matching records.
+        """
+
+    @abc.abstractmethod
+    def update_metadata(
+        self,
+        id: str,
+        *,
+        captured_at: datetime | _UnsetType = UNSET,
+        device_id: str | None | _UnsetType = UNSET,
+        duration: float | None | _UnsetType = UNSET,
+    ) -> None:
+        """Update intrinsic metadata fields, skipping unset parameters.
+
+        Corrects capture-time or device attribution after the fact (enrichment
+        fields go through :meth:`update_enrichment` instead). Only non-``UNSET``
+        fields are written; ``captured_at`` is normalized to UTC.
+
+        Parameters
+        ----------
+        id : str
+            The record ID.
+        captured_at : datetime | UNSET
+            Corrected capture time, or ``UNSET`` to leave unchanged.
+        device_id : str | None | UNSET
+            New device id (``None`` clears it), or ``UNSET`` to leave unchanged.
+        duration : float | None | UNSET
+            New duration (``None`` clears it), or ``UNSET`` to leave unchanged.
+
+        Raises
+        ------
+        KeyError
+            If no record with the given ID exists.
         """
 
     @abc.abstractmethod
