@@ -58,6 +58,7 @@ def test_readme_quick_start(tmp_path: pathlib.Path) -> None:
         device_id="pi-01",
         labels=["person"],
     )
+    assert record_id is not None
 
     # 2. Enrich later.
     db.update_enrichment(
@@ -110,6 +111,7 @@ def _store_with_embedding(
     rid = db.insert(
         media, media_type=MediaType.IMAGE, captured_at=datetime.now(timezone.utc)
     )
+    assert rid is not None
     db.update_enrichment(rid, embedding=embedding, embedding_model=model)
     return db
 
