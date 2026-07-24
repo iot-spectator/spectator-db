@@ -15,8 +15,10 @@ stored, so a slow or missing model never costs you data.
 
 - **One store for media + metadata + embeddings**, backed by the local file
   system and SQLite.
+- **One-line folder import** with EXIF/mtime capture times and SHA-256
+  content-hash deduplication.
 - **Composable queries** by time range, media type, device id, and labels
-  (any-match), newest-first, with limit/offset.
+  (any-match), newest-first, with limit/offset, plus `count()` for paging.
 - **Semantic similarity search** over embeddings, scoped to a single embedding
   model — pure-Python cosine, no extra dependencies.
 - **Store-first, enrich-later**: insert immediately, attach labels/description/
@@ -26,14 +28,25 @@ stored, so a slow or missing model never costs you data.
   UTC-normalized timestamps at the API boundary.
 - **Pluggable backends** via the `Storage` and `MetadataStore` ABCs.
 
+## Privacy & guarantees
+
+- **Offline always.** No network calls, no telemetry — nothing ever leaves the
+  device. A test in the suite asserts the package opens no sockets.
+- **Zero required runtime dependencies.** The core is stdlib-only. The optional
+  `[exif]` extra pulls in Pillow for richer photo formats; the core never
+  imports it.
+- **Two-folder portability.** Your data is just a folder of media files plus one
+  SQLite catalog — open, inspectable, and readable decades from now.
+
 ## Requirements
 
-- Python 3.13+
+- Python 3.11+ (runs on Raspberry Pi OS Bookworm)
 
 ## Installation
 
 ```bash
-$ python -m pip install spectator-db
+$ python -m pip install spectator-db            # zero-dependency core
+$ python -m pip install "spectator-db[exif]"    # + Pillow for richer EXIF/HEIC
 ```
 
 To work on the library itself, clone the repository and install it in editable
@@ -60,16 +73,22 @@ db = SpectatorDB(
     metadata_store=SQLiteMetadataStore(pathlib.Path("./spectator.db")),
 )
 
-# 1. Store a capture. captured_at is required and normalized to UTC on write.
+# 1. Import a whole folder in one line. Capture times come from EXIF (falling
+#    back to file mtime), and duplicates are skipped by content hash.
+ids = db.import_dir(pathlib.Path("~/Pictures").expanduser())
+
+# 2. Or store a single capture. captured_at is optional — omit it and it is
+#    read from EXIF, then the file's mtime. Returns None if skip_duplicates
+#    skipped it.
 record_id = db.insert(
     pathlib.Path("/path/to/snapshot.jpg"),
     media_type=MediaType.IMAGE,
-    captured_at=datetime.now(timezone.utc),
     device_id="pi-01",
     labels=["person"],
+    skip_duplicates=True,
 )
 
-# 2. Enrich later (store-first, enrich-later). embedding and embedding_model
+# 3. Enrich later (store-first, enrich-later). embedding and embedding_model
 #    must be set together.
 db.update_enrichment(
     record_id,
@@ -78,13 +97,18 @@ db.update_enrichment(
     embedding_model="clip-vit-b32",
 )
 
-# 3. Query with composable filters, newest-first.
+# 4. Query with composable filters, newest-first; count() pages without
+#    loading rows.
 hits = db.query(media_type=MediaType.IMAGE, labels=["person"], limit=10)
+total = db.count(media_type=MediaType.IMAGE, labels=["person"])
 
-# 4. Semantic similarity search, scoped to one embedding model.
+# 5. Semantic similarity search, scoped to one embedding model.
 similar = db.search_similar([0.11, 0.19, 0.31], model="clip-vit-b32", limit=5)
 
-# 5. Read a record and copy its file back out.
+# 6. Fix a wrong capture time or device after the fact.
+db.update_metadata(record_id, captured_at=datetime(2025, 6, 15, tzinfo=timezone.utc))
+
+# 7. Read a record and copy its file back out.
 record = db.get(record_id)
 db.retrieve(record_id, pathlib.Path("./out.jpg"))
 ```
@@ -109,8 +133,9 @@ from spectatordb import (
 )
 ```
 
-`SpectatorDB` methods: `insert`, `update_enrichment`, `get`, `retrieve`,
-`query`, `search_similar`, `delete`, `reconcile`.
+`SpectatorDB` methods: `insert`, `import_dir`, `exists`, `update_enrichment`,
+`update_metadata`, `get`, `retrieve`, `query`, `count`, `search_similar`,
+`delete`, `reconcile`.
 
 ## Concurrency
 

@@ -1,0 +1,47 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Starting with 0.1.0, the public API exported from the `spectatordb` package root
+is covered by semantic versioning.
+
+## [Unreleased]
+
+## [0.1.0] - 2026-07-23
+
+First release aimed at real personal use: point it at a folder of photos and
+videos and search them, fully offline with a stdlib-only core.
+
+### Added
+- `SpectatorDB.import_dir()` — bulk-import every recognized image/video under a
+  directory (recursive by default), skipping duplicates.
+- Optional `captured_at` on `insert()` — when omitted, the capture time is read
+  from the image's EXIF `DateTimeOriginal`, falling back to the file's mtime.
+- Zero-dependency EXIF reader (`spectatordb.exif.read_captured_at`) for JPEG/TIFF
+  `DateTimeOriginal`. Optional `[exif]` extra adds Pillow for richer formats
+  (e.g. HEIC); the core never imports Pillow.
+- Content-hash deduplication: `insert()` now computes a SHA-256 `content_hash`
+  when not supplied, accepts `skip_duplicates=True`, and there is a new
+  `exists(content_hash)` check.
+- `count(...)` — count records matching the same filters as `query()`, for
+  paging without materializing rows.
+- `update_metadata(...)` — correct intrinsic fields (`captured_at`, `device_id`,
+  `duration`) after the fact, complementing `update_enrichment`.
+- Test asserting the package opens no network sockets during a full workflow.
+
+### Changed
+- **Lowered the required Python from 3.13 to 3.11** so it runs on Raspberry Pi
+  OS (Bookworm). Dropped the advisory `@override` decorators; `StrEnum` and
+  `Self` remain available on 3.11.
+- `insert()` now returns `str | None` (`None` when skipped as a duplicate).
+- Declared `[project.optional-dependencies]` with the `exif` extra; the core
+  still installs with zero runtime dependencies.
+- Metadata schema bumped to version 2, adding an index on `content_hash`
+  (forward-migrated automatically for existing databases).
+- `search_similar` precomputes the query vector's norm once instead of per
+  candidate — same results, less work per brute-force scan.
+
+[Unreleased]: https://github.com/iot-spectator/spectator-db/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/iot-spectator/spectator-db/releases/tag/v0.1.0
