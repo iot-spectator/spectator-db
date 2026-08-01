@@ -3,8 +3,6 @@
 import pathlib
 import shutil
 
-from typing import override
-
 from spectatordb.storage import storage
 
 
@@ -32,7 +30,6 @@ class LocalStorage(storage.Storage):
         self._storage_dir = storage_dir
         self._storage_dir.mkdir(parents=True, exist_ok=True)
 
-    @override
     def save(
         self,
         file: pathlib.Path,
@@ -69,7 +66,6 @@ class LocalStorage(storage.Storage):
                 raise FileExistsError(f"File {target_path} already exists in storage.")
             shutil.copy2(file, target_path)
 
-    @override
     def retrieve(self, name: str, dest: pathlib.Path) -> None:
         """Retrieve a file from the local storage directory to a destination path.
 
@@ -90,7 +86,6 @@ class LocalStorage(storage.Storage):
             raise FileNotFoundError(f"File '{name}' not found.")
         shutil.copy2(target_path, dest)
 
-    @override
     def delete(self, name: str) -> None:
         """Delete a file from the local storage directory.
 
@@ -103,7 +98,6 @@ class LocalStorage(storage.Storage):
         if target_path.exists():
             target_path.unlink()
 
-    @override
     def list_all(self) -> list[pathlib.Path]:
         """List all files stored in the local storage directory.
 

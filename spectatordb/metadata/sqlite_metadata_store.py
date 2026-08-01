@@ -6,12 +6,11 @@ import sqlite3
 import threading
 
 from datetime import datetime, timezone
-from typing import override
 
 from spectatordb.metadata.metadata_store import MetadataStore
 from spectatordb.models import MediaRecord, MediaType, _UnsetType, UNSET
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
 
 
 def _to_utc(dt: datetime) -> datetime:
@@ -21,14 +20,29 @@ def _to_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    """Compute cosine similarity between two vectors."""
-    dot: float = sum((x * y for x, y in zip(a, b)), 0.0)
-    norm_a: float = sum((x * x for x in a), 0.0) ** 0.5
-    norm_b: float = sum((x * x for x in b), 0.0) ** 0.5
-    if norm_a == 0.0 or norm_b == 0.0:
+def _l2_norm(vec: list[float]) -> float:
+    """Return the Euclidean (L2) norm of a vector."""
+    total: float = sum((x * x for x in vec), 0.0)
+    norm: float = total**0.5
+    return norm
+
+
+def _cosine_similarity(
+    query: list[float], query_norm: float, other: list[float]
+) -> float:
+    """Cosine similarity using a precomputed query norm.
+
+    The query vector's norm is computed once by the caller and reused across
+    every candidate, so brute-force search over N vectors does O(N·d) work
+    instead of recomputing the query norm N times. Pure-Python, zero-dep.
+    """
+    if query_norm == 0.0:
         return 0.0
-    return dot / (norm_a * norm_b)
+    other_norm = _l2_norm(other)
+    if other_norm == 0.0:
+        return 0.0
+    dot: float = sum((x * y for x, y in zip(query, other)), 0.0)
+    return dot / (query_norm * other_norm)
 
 
 class SQLiteMetadataStore(MetadataStore):
@@ -61,7 +75,6 @@ class SQLiteMetadataStore(MetadataStore):
         self._lock = threading.Lock()
         self._init_schema()
 
-    @override
     def close(self) -> None:
         """Close the database connection."""
         self._connection.close()
@@ -115,6 +128,8 @@ class SQLiteMetadataStore(MetadataStore):
                 ON media(media_type);
             CREATE INDEX IF NOT EXISTS idx_media_device_id
                 ON media(device_id);
+            CREATE INDEX IF NOT EXISTS idx_media_content_hash
+                ON media(content_hash);
             """)
 
     def _migrate(self, from_version: int) -> None:
@@ -126,8 +141,13 @@ class SQLiteMetadataStore(MetadataStore):
                 "ALTER TABLE media ADD COLUMN embedding_dim INTEGER"
             )
             self._connection.execute("ALTER TABLE media ADD COLUMN content_hash TEXT")
-            self._connection.execute("PRAGMA user_version = 1")
-            self._connection.commit()
+        if from_version < 2:
+            self._connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_media_content_hash"
+                " ON media(content_hash)"
+            )
+        self._connection.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
+        self._connection.commit()
 
     # ------------------------------------------------------------------
     # Row mapping
@@ -169,7 +189,6 @@ class SQLiteMetadataStore(MetadataStore):
     # MetadataStore interface
     # ------------------------------------------------------------------
 
-    @override
     def insert(self, record: MediaRecord) -> str:
         """See base class."""
         now = datetime.now(timezone.utc)
@@ -209,7 +228,6 @@ class SQLiteMetadataStore(MetadataStore):
             self._connection.commit()
         return record.id
 
-    @override
     def get(self, id: str) -> MediaRecord:
         """See base class."""
         cursor = self._connection.execute("SELECT * FROM media WHERE id = ?", (id,))
@@ -218,7 +236,14 @@ class SQLiteMetadataStore(MetadataStore):
             raise KeyError(f"No record with id '{id}'")
         return self._row_to_record(row)
 
-    @override
+    def exists(self, content_hash: str) -> bool:
+        """See base class."""
+        cursor = self._connection.execute(
+            "SELECT 1 FROM media WHERE content_hash = ? LIMIT 1",
+            (content_hash,),
+        )
+        return cursor.fetchone() is not None
+
     def delete(self, id: str) -> None:
         """See base class."""
         with self._lock:
@@ -227,7 +252,6 @@ class SQLiteMetadataStore(MetadataStore):
         if cursor.rowcount == 0:
             raise KeyError(f"No record with id '{id}'")
 
-    @override
     def update_enrichment(
         self,
         id: str,
@@ -282,19 +306,15 @@ class SQLiteMetadataStore(MetadataStore):
         if cursor.rowcount == 0:
             raise KeyError(f"No record with id '{id}'")
 
-    @override
-    def query(
-        self,
-        *,
-        start: datetime | None = None,
-        end: datetime | None = None,
-        media_type: MediaType | None = None,
-        device_id: str | None = None,
-        labels: list[str] | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> list[MediaRecord]:
-        """See base class."""
+    @staticmethod
+    def _build_filters(
+        start: datetime | None,
+        end: datetime | None,
+        media_type: MediaType | None,
+        device_id: str | None,
+        labels: list[str] | None,
+    ) -> tuple[list[str], list[str | int | float]]:
+        """Build shared WHERE clauses and params for query/count."""
         clauses: list[str] = []
         params: list[str | int | float] = []
 
@@ -319,6 +339,22 @@ class SQLiteMetadataStore(MetadataStore):
                 params.append(label)
             clauses.append(f"({' OR '.join(label_clauses)})")
 
+        return clauses, params
+
+    def query(
+        self,
+        *,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        media_type: MediaType | None = None,
+        device_id: str | None = None,
+        labels: list[str] | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[MediaRecord]:
+        """See base class."""
+        clauses, params = self._build_filters(start, end, media_type, device_id, labels)
+
         sql = "SELECT * FROM media"
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
@@ -334,7 +370,58 @@ class SQLiteMetadataStore(MetadataStore):
         cursor = self._connection.execute(sql, params)
         return [self._row_to_record(row) for row in cursor.fetchall()]
 
-    @override
+    def count(
+        self,
+        *,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        media_type: MediaType | None = None,
+        device_id: str | None = None,
+        labels: list[str] | None = None,
+    ) -> int:
+        """See base class."""
+        clauses, params = self._build_filters(start, end, media_type, device_id, labels)
+        sql = "SELECT COUNT(*) FROM media"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        cursor = self._connection.execute(sql, params)
+        return int(cursor.fetchone()[0])
+
+    def update_metadata(
+        self,
+        id: str,
+        *,
+        captured_at: datetime | _UnsetType = UNSET,
+        device_id: str | None | _UnsetType = UNSET,
+        duration: float | None | _UnsetType = UNSET,
+    ) -> None:
+        """See base class."""
+        clauses: list[str] = []
+        params: list[object] = []
+
+        if not isinstance(captured_at, _UnsetType):
+            clauses.append("captured_at = ?")
+            params.append(_to_utc(captured_at).isoformat())
+        if not isinstance(device_id, _UnsetType):
+            clauses.append("device_id = ?")
+            params.append(device_id)
+        if not isinstance(duration, _UnsetType):
+            clauses.append("duration = ?")
+            params.append(duration)
+
+        if not clauses:
+            self.get(id)  # raise KeyError if record doesn't exist
+            return
+
+        params.append(id)
+        sql = f"UPDATE media SET {', '.join(clauses)} WHERE id = ?"
+
+        with self._lock:
+            cursor = self._connection.execute(sql, params)
+            self._connection.commit()
+        if cursor.rowcount == 0:
+            raise KeyError(f"No record with id '{id}'")
+
     def search_similar(
         self,
         embedding: list[float],
@@ -349,6 +436,7 @@ class SQLiteMetadataStore(MetadataStore):
             (model,),
         )
         rows = cursor.fetchall()
+        query_norm = _l2_norm(embedding)
 
         scored: list[tuple[float, MediaRecord]] = []
         for row in rows:
@@ -361,7 +449,7 @@ class SQLiteMetadataStore(MetadataStore):
                     f" stored dimension {len(record.embedding)} for model"
                     f" '{model}'"
                 )
-            score = _cosine_similarity(embedding, record.embedding)
+            score = _cosine_similarity(embedding, query_norm, record.embedding)
             if threshold is None or score >= threshold:
                 scored.append((score, record))
 

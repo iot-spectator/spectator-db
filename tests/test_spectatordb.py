@@ -333,6 +333,7 @@ class TestReconcile:
             MediaType.IMAGE,
             captured_at=datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
+        assert record_id is not None
         # Remove the file directly, leaving a dangling row
         record = db.get(record_id)
         (storage_dir / f"{record.id}.{record.format}").unlink()
