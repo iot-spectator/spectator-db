@@ -4,15 +4,21 @@ All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-Starting with 0.1.0, the public API exported from the `spectatordb` package root
+Starting with 0.2.0, the public API exported from the `spectatordb` package root
 is covered by semantic versioning.
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-07-23
+## [0.2.0] - 2026-08-05
 
 First release aimed at real personal use: point it at a folder of photos and
 videos and search them, fully offline with a stdlib-only core.
+
+> **Note on 0.1.0.** A `0.1.0` build was published to PyPI on 2026-06-13 from an
+> earlier state of the tree, before the work described below landed. That
+> release is superseded and does not contain any of these changes. Because PyPI
+> version numbers can never be reused, this release is numbered `0.2.0`; the
+> version bump reflects the collision, not a second round of API changes.
 
 ### Added
 - `SpectatorDB.import_dir()` — bulk-import every recognized image/video under a
@@ -43,5 +49,5 @@ videos and search them, fully offline with a stdlib-only core.
 - `search_similar` precomputes the query vector's norm once instead of per
   candidate — same results, less work per brute-force scan.
 
-[Unreleased]: https://github.com/iot-spectator/spectator-db/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/iot-spectator/spectator-db/releases/tag/v0.1.0
+[Unreleased]: https://github.com/iot-spectator/spectator-db/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/iot-spectator/spectator-db/releases/tag/v0.2.0
