@@ -9,6 +9,12 @@ is covered by semantic versioning.
 
 ## [Unreleased]
 
+### Added
+- `examples/photos.py` — a complete personal photo-library CLI built on the
+  public API: folder import, tagging, search by time/type/label/device,
+  similarity search, export, and maintenance. Stdlib-only except `embed`,
+  which uses the `[exif]` extra's decoder to compute a color-layout signature.
+
 ## [0.2.0] - 2026-08-05
 
 First release aimed at real personal use: point it at a folder of photos and

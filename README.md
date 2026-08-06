@@ -113,6 +113,41 @@ record = db.get(record_id)
 db.retrieve(record_id, pathlib.Path("./out.jpg"))
 ```
 
+## Example: a personal photo library
+
+[`examples/photos.py`](examples/photos.py) is a complete command-line tool built
+on the public API — import a folder, tag it, search it, find look-alikes:
+
+```bash
+$ python examples/photos.py import ~/Pictures
+imported 2153 file(s) from /home/you/Pictures
+library now holds 2153 record(s)
+
+$ python examples/photos.py list --type image --since 2026-01-01 --limit 3
+7e281c56  2026-03-14 09:12  image     2.4 MB  -
+1e457344  2026-02-02 17:40  image     1.9 MB  -
+cd4f7678  2026-01-08 11:05  image     3.1 MB  -
+
+$ python examples/photos.py tag 7e281c56 --add beach --add sunset
+$ python examples/photos.py list --label beach
+$ python examples/photos.py similar 7e281c56
+```
+
+Every command except `embed` runs on the stdlib-only core. `embed` needs an
+image decoder, so it requires the `[exif]` extra:
+
+```bash
+$ python -m pip install "spectator-db[exif]"
+$ python examples/photos.py embed
+```
+
+The embedding it computes is a 64-dimension color-layout signature — a 4x4 grid
+of mean RGB plus a luma histogram. It matches on **color and composition, not
+meaning**: it will find your other beach photos, but it does not understand what
+a beach is. It exists so the similarity path is exercised end to end with no
+dependencies to speak of. Swapping in a real model such as CLIP means replacing
+one function; storage and search do not change.
+
 ## Public API
 
 The supported, semver-protected surface is exported from the `spectatordb`
