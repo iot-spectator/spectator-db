@@ -177,3 +177,37 @@ from spectatordb import (
 A `SQLiteMetadataStore` uses one WAL-mode connection per process and serializes
 writes with a lock; reads are concurrent. It is thread-safe for the expected
 low-write workload — use **one instance per process**.
+
+## Performance
+
+Measured, not estimated. [`benchmarks/`](benchmarks/) holds a stdlib-only
+harness that runs unmodified on a laptop and a Raspberry Pi; the numbers below
+are one laptop pass ([full report](benchmarks/results/laptop.md), methodology
+and caveats in [`benchmarks/README.md`](benchmarks/README.md)).
+
+| records | insert (median) | similarity search | paged `query()` | catalog size |
+| ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 2.7 ms | 36 ms | 1.5 ms | 2.2 MiB |
+| 10,000 | 1.8 ms | 411 ms | 1.6 ms | 22 MiB |
+| 50,000 | 2.0 ms | 2.1 s | 1.8 ms | 110 MiB |
+
+Read those honestly:
+
+- **Inserts and paged queries stay flat** as the library grows. Import
+  throughput is bound by the per-insert commit, so real multi-megabyte photos
+  land at roughly 100 files/sec rather than the ~400/sec small files suggest.
+- **Similarity search is brute force and O(N).** Every vector for the model is
+  loaded, JSON-decoded, and scored on each call, and `limit` bounds the results
+  rather than the work. It is comfortable at 1k, sluggish at 10k, and not
+  interactive at 50k — on a Pi, sooner. Fixing that means an index, not a
+  faster loop.
+- **Vectors dominate the catalog**: ~468 B/record without an embedding,
+  ~2.3 KiB with a 64-d one, because vectors are stored as JSON text.
+- **`query()` filtered by `media_type` is not index-served** and grows with the
+  library (39.9 ms at 50k against 1.8 ms unfiltered). See the benchmark README.
+
+Run it yourself:
+
+```bash
+$ python benchmarks/benchmark.py --scales 1000,10000
+```
