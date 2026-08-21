@@ -10,10 +10,18 @@ is covered by semantic versioning.
 ## [Unreleased]
 
 ### Added
-- `examples/photos.py` — a complete personal photo-library CLI built on the
-  public API: folder import, tagging, search by time/type/label/device,
-  similarity search, export, and maintenance. Stdlib-only except `embed`,
-  which uses the `[exif]` extra's decoder to compute a color-layout signature.
+- `benchmarks/benchmark.py` — a stdlib-only harness measuring insert
+  throughput, similarity-search latency, and on-disk size at 1k/10k/50k
+  records, with a file-size sweep and a Markdown/JSON report. Runs unmodified
+  on a laptop and a Raspberry Pi. Methodology and recorded runs are in
+  `benchmarks/README.md`.
+
+### Documented
+- Two scaling limits the benchmarks surfaced, now written down in
+  `benchmarks/README.md`: `query()` with a low-selectivity `media_type` filter
+  is not index-served (SQLite sorts the whole match set before `LIMIT`), and
+  `count()` filtered by label always scans because labels are matched through
+  `json_each`.
 
 ## [0.2.0] - 2026-08-05
 
@@ -42,6 +50,10 @@ videos and search them, fully offline with a stdlib-only core.
 - `update_metadata(...)` — correct intrinsic fields (`captured_at`, `device_id`,
   `duration`) after the fact, complementing `update_enrichment`.
 - Test asserting the package opens no network sockets during a full workflow.
+- `examples/photos.py` — a complete personal photo-library CLI built on the
+  public API: folder import, tagging, search by time/type/label/device,
+  similarity search, export, and maintenance. Stdlib-only except `embed`,
+  which uses the `[exif]` extra's decoder to compute a color-layout signature.
 
 ### Changed
 - **Lowered the required Python from 3.13 to 3.11** so it runs on Raspberry Pi
